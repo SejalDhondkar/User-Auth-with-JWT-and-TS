@@ -1,13 +1,11 @@
-import { JWT_REFRESH_SECRET, JWT_SECRET } from "../constants/env";
 import { CONFLICT, UNAUTHORIZED } from "../constants/http";
 import { VerificationCodeTypes } from "../constants/verificationCodeTypes";
 import SessionModel from "../models/session.model";
 import UserModel from "../models/user.model";
 import VerificationCodeModel from "../models/verificationCode.model";
 import appAssert from "../utils/appAssert";
-import { oneYearFromNow } from "../utils/date";
-import jwt from "jsonwebtoken";
-import { refreshTokenSignOptions, signToken } from "../utils/jwt";
+import { oneDayFromNow, oneYearFromNow, thirtyDaysFromNow } from "../utils/date";
+import { RefreshTokenPayload, refreshTokenSignOptions, signToken, verifyToken } from "../utils/jwt";
 
 export type CreateAccountParams = {
     email: string;
@@ -112,4 +110,44 @@ export const loginUser = async ({
         refreshToken
     };
 
+};
+
+export const refreshUserAccessToken = async (RefreshToken: string) => {
+    const { payload } = verifyToken<RefreshTokenPayload>(RefreshToken, refreshTokenSignOptions);
+    appAssert(payload,UNAUTHORIZED,'Invalid Refresh Token');
+
+    // check if session exists in DB
+    const session = await SessionModel.findById(payload.sessionId);
+
+    //check if session not exists in DB or session is expired
+    const now = Date.now();
+    appAssert(
+        session && session.expiresAt.getTime() > now,
+        UNAUTHORIZED,
+        'Session expired'
+    );
+
+    // refresh token if it is to expire in next 24hrs/1day
+    const sessionNeedRefresh = session.expiresAt.getTime() - now <= oneDayFromNow();
+    if(sessionNeedRefresh) {
+        session.expiresAt = thirtyDaysFromNow();
+        await session.save();
+    }
+
+    const newRefreshToken = sessionNeedRefresh
+        ? signToken({
+            sessionId: session._id
+        },
+        refreshTokenSignOptions
+    ) : undefined;
+
+    const accessToken = signToken({
+        userId: session.userId,
+        sessionId: session._id
+    });
+
+    return {
+        accessToken,
+        newRefreshToken
+    }
 };

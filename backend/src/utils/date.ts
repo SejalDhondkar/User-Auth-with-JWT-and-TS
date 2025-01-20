@@ -15,3 +15,7 @@ export const fifteenMunitesFromNow = () => {
         Date.now() + 15 * 60 * 1000
     )
 }
+
+export const oneDayFromNow = () => {
+    return Date.now() + 24 * 60 * 60 * 1000
+}

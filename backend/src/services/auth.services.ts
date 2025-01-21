@@ -1,11 +1,14 @@
-import { CONFLICT, UNAUTHORIZED } from "../constants/http";
+import { APP_ORIGIN } from "../constants/env";
+import { CONFLICT, INTERNAL_SERVER_ERROR, NOT_FOUND, UNAUTHORIZED } from "../constants/http";
 import { VerificationCodeTypes } from "../constants/verificationCodeTypes";
 import SessionModel from "../models/session.model";
 import UserModel from "../models/user.model";
 import VerificationCodeModel from "../models/verificationCode.model";
 import appAssert from "../utils/appAssert";
 import { oneDayFromNow, oneYearFromNow, thirtyDaysFromNow } from "../utils/date";
+import { getVerifyEmailTemplate } from "../utils/emailTemplates";
 import { RefreshTokenPayload, refreshTokenSignOptions, signToken, verifyToken } from "../utils/jwt";
+import { sendMail } from "../utils/sendMail";
 
 export type CreateAccountParams = {
     email: string;
@@ -38,6 +41,11 @@ export const createAccount = async (data: CreateAccountParams) => {
     });
 
     // send verification email
+    const url = `${APP_ORIGIN}/email/verify/${verificationCode._id}`;
+    await sendMail({
+        to: user.email,
+        ...getVerifyEmailTemplate(url)
+    });
 
     // create session
     const session = await SessionModel.create({
@@ -151,3 +159,31 @@ export const refreshUserAccessToken = async (RefreshToken: string) => {
         newRefreshToken
     }
 };
+
+
+export const verifyEmail = async (code: string) => {
+    // get the verification code
+    const validCode = await VerificationCodeModel.findOne({
+        _id: code,
+        type: VerificationCodeTypes.EmailVerification,
+        expiresAt: { $gt: new Date() }
+    });
+    appAssert(validCode, NOT_FOUND, 'Invalid or Expired Verification Code');
+
+    // get the user by id and update the user verifed to true
+    const updatedUser = await UserModel.findByIdAndUpdate(
+        validCode.userId, {
+            verified: true
+        },
+        { new: true }
+    );
+    appAssert(updatedUser, INTERNAL_SERVER_ERROR, 'Failed to verify email');
+
+    // delete verification code
+    await validCode.deleteOne();
+
+    // return user
+    return {
+        user: updatedUser.omitPassword()
+    };
+}

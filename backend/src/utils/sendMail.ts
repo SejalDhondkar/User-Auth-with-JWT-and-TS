@@ -19,7 +19,7 @@ export const sendMail = async (
     {
         to, subject, text, html
     }: sendEmailParams
-) => {
+) => 
     await resend.emails.send({
         from: getFromEmail(),
         to: getToEmail(to),
@@ -27,4 +27,3 @@ export const sendMail = async (
         text, 
         html
       });
-}

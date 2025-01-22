@@ -19,3 +19,14 @@ export const fifteenMunitesFromNow = () => {
 export const oneDayFromNow = () => {
     return Date.now() + 24 * 60 * 60 * 1000
 }
+
+
+export const fiveMinutesAgo = () => {
+    return Date.now() - 5 * 60 * 1000;
+}
+
+export const oneHourFromNow = () => {
+    return new Date(
+        Date.now() + 1 * 60 * 60 * 1000
+    )
+}

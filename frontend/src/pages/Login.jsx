@@ -13,13 +13,15 @@ import {
 } from '@chakra-ui/react';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { login } from '../lib/api';
 
 const Login = () => {
+    const location = useLocation();
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const redirectUrl = location.state?.redirectUrl || '/';
 
     const {
         mutate: signIn,
@@ -28,7 +30,7 @@ const Login = () => {
     } = useMutation({
         mutationFn: login,
         onSuccess: ()=>{
-            navigate('/',{
+            navigate(redirectUrl,{
                 replace: true,
             })
         }
